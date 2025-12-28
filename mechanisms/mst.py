@@ -8,6 +8,8 @@ from cdp2adp import cdp_rho
 from scipy.special import logsumexp
 import argparse
 import pandas as pd
+import os
+import json
 
 """
 This is a generalization of the winning mechanism from the 
@@ -105,7 +107,7 @@ def select(data, rho, measurement_log, cliques=[]):
 
 
 def transform_data(data, supports):
-  df = pd.DataFrame(data.data, columns=data.domain.attrs)
+  df = pd.DataFrame(data.to_dict(), columns=data.domain.attrs)
   newdom = {}
   for col in data.domain:
     support = supports[col]
@@ -123,11 +125,11 @@ def transform_data(data, supports):
     assert idx == size
     df[col] = df[col].map(mapping)
   newdom = Domain.fromdict(newdom)
-  return Dataset(df.values, newdom)
+  return Dataset(df.values.astype(int), newdom)
 
 
 def reverse_data(data, supports):
-  df = pd.DataFrame(data.data, columns=data.domain.attrs)
+  df = pd.DataFrame(data.to_dict(), columns=data.domain.attrs)
   newdom = {}
   for col in data.domain:
     support = supports[col]
@@ -187,7 +189,10 @@ if __name__ == "__main__":
   parser.set_defaults(**default_params())
   args = parser.parse_args()
 
-  data = Dataset.load(args.dataset, args.domain)
+  df = pd.read_csv(os.path.join('../data/', args.dataset))
+  config = json.load(open(os.path.join('../data/', args.domain), 'r'))
+  domain = Domain.fromdict(config)
+  data = Dataset(df, domain)
 
   workload = list(itertools.combinations(data.domain, args.degree))
   workload = [cl for cl in workload if data.domain.size(cl) <= args.max_cells]
@@ -201,7 +206,7 @@ if __name__ == "__main__":
   synth = MST(data, args.epsilon, args.delta)
 
   if args.save is not None:
-    df = pd.DataFrame(synth.data, columns=synth.domain.attrs)
+    df = pd.DataFrame(synth.to_dict(), columns=synth.domain.attrs)
     df.to_csv(args.save, index=False)
 
   errors = []
