@@ -134,46 +134,48 @@ class AIM(Mechanism):
 
             # Move offset to the next attribute's bins
             col_offset += n_bins
-
         return ohe_matrix
 
     def get_unit_guassian_samples(self, n):
+        # Mayank: Need encryption here
         return self.gaussian_noise(1,n)
 
     def get_unit_gumbel_samples(self, n):
+            # Mayank: Need encryption here
             return np.random.gumbel(loc=0, scale=1, size=n)
 
     def calculate_max_gaussian_samples(self, domain, workload, rho):
         pass
+        return 10000 # this is for testing purpose only
 
     def calculate_max_gumbel_samples(self, domain, workload, rho):
-            pass
+        pass
+        return 10000 # this is for testing purpose only
 
 
     def run(self, data, workload, num_synth_rows=None, initial_cliques=None):
         rounds = self.rounds or 16 * len(data.domain)
         candidates = compile_workload(workload)
 
-
+        print("Starting compute step....")
         # Sikha start ----- COMPUTE
         domain = data.domain
         workload_domain_size = [domain.project(cl).size() for cl in candidates]
         max_domain_size = max(workload_domain_size)
         #answers = {cl: data.project(cl).datavector() for cl in candidates}
-        ohe_data = self.OHE(data)
-        data_enc = ohe_data.copy()
+        ohe_data = self.OHE(data)  
+        enc_data = ohe_data.copy() # Mayank: Here OHE is encrypted
 
-        gaussian_samples_needed = self.calculate_max_gaussian_samples(data.domain, workload, self.rho)
-        gumbel_samples_needed = self.calculate_max_gumbel_samples(data.domain, workload, self.rho)
-
+        gaussian_samples_needed = self.calculate_max_gaussian_samples(data.domain, workload, self.rho) # Mayank: for testing, its set to 10000
+        gumbel_samples_needed = self.calculate_max_gumbel_samples(data.domain, workload, self.rho) # Mayank: for testing, its set to 10000
 
         enc_noise_measure = self.get_unit_guassian_samples(gaussian_samples_needed)
         enc_noise_select = self.get_unit_gumbel_samples(gumbel_samples_needed)
         he = HE_Computations(domain, workload_domain_size, candidates, enc_noise_measure, enc_noise_select)
         #answers_enc =
-        he.compute(data_enc)
+        he.compute(enc_data) # Mayank: This here computes the oneway and two way marginals
         # Sikha end
-
+        print("Finished compute step....")
 
         sigma = np.sqrt(rounds / (2 * 0.9 * self.rho))
         epsilon = np.sqrt(8 * 0.1 * self.rho / rounds)
@@ -187,6 +189,7 @@ class AIM(Mechanism):
         measurements = []
         print("Initial Sigma", sigma)
         rho_used = len(oneway) * 0.5 / sigma**2
+        print("Starting measure step....")
         # Sikha start ----- MEASURE ONE WAY
         oneway_indices = {value:i for i, value in enumerate(candidates) if value in oneway}
         #for cl in oneway_indices:
@@ -196,9 +199,13 @@ class AIM(Mechanism):
             #x = data.project(cl).datavector()
             #y = x + self.gaussian_noise(sigma, x.size)
             y = y_enc.copy() # Decrypt here
+
+            # Mayank: maybe here after decrypting, we will need to truncate 
+            # y_enc to appropriate length based on the start and end indices
+            
             # Sikha end
             measurements.append(LinearMeasurement(y, cl, stddev=sigma))
-
+        print("Finished measure step....")
         zeros = self.structural_zeros
         # NOTE: Haven't incorproated structural zeros back yet after refactoring
         model = estimation.mirror_descent(
@@ -207,6 +214,7 @@ class AIM(Mechanism):
 
         t = 0
         terminate = False
+        print("Starting select and measure cycle")
         while not terminate:
             t += 1
             if self.rho - rho_used < 2 * (0.5 / sigma**2 + 1.0 / 8 * epsilon**2):
@@ -242,6 +250,9 @@ class AIM(Mechanism):
 
             cl, y_enc = he.select_measure_worst(small_candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt)
             y = y_enc.copy() # decrypt here
+
+            # Mayank: maybe here after decrypting, we will need to truncate 
+            # y_enc to appropriate length based on the start and end indices
 
             # cl = self.worst_approximated(
             #     small_candidates, answers, model, epsilon, sigma
@@ -287,8 +298,9 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params['dataset'] = '../data/unosb_v1.csv'
-    params['domain'] = '../data/unosb_v1-domain.json'
+    # params['dataset'] = '../data/unosb_v1.csv'
+    params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
+    params['domain'] = '../data/unosb_v1_smallest-domain.json'
     params["epsilon"] = 10
     params["delta"] = 1e-9
     params["noise"] = "laplace"

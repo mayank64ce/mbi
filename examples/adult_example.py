@@ -8,7 +8,7 @@ import numpy as np
 
 # load adult dataset
 
-data = Dataset.load("../data/adult.csv", "../data/adult-domain.json")
+data = Dataset.load("../data/unosb_v1_small.csv", "../data/unosb_v1-domain.json")
 domain = data.domain
 total = data.records
 
@@ -18,11 +18,8 @@ print(domain)
 np.random.seed(0)
 
 cliques = [
-  ("age", "education-num"),
-  ("marital-status", "race"),
-  ("sex", "hours-per-week"),
-  ("hours-per-week", "income>50K"),
-  ("native-country", "marital-status", "occupation"),
+  ("age_bin", "bmi_bin"),
+  ("creat_bin", "bili_bin"),
 ]
 
 
@@ -33,6 +30,7 @@ sigma = 2.0 / epsilon_split
 measurements = []
 for col in data.domain:
   x = data.project(col).datavector()
+  print(f"{col} : {len(x)}")
   y = x + np.random.laplace(loc=0, scale=sigma, size=x.size)
   measurements.append(marginal_loss.LinearMeasurement(y, (col,)))
 
@@ -51,10 +49,10 @@ model = estimation.mirror_descent(domain, loss_fn, known_total=estimated_total, 
 
 # now answer new queries
 
-y1 = model.project(("sex", "income>50K")).datavector()
-y2 = model.project(("race", "occupation")).datavector()
+y1 = model.project(("age_bin", "event_status")).datavector()
+# y2 = model.project(("race", "occupation")).datavector()
 
 # and compute error:
 
-x1 = data.project(("sex", "income>50K")).datavector()
-print('Error on (sex, income>50K)', np.linalg.norm(x1 - y1, 1) / x1.sum())
+x1 = data.project(("age_bin", "event_status")).datavector()
+print('Error on ("age_bin", "event_status")', np.linalg.norm(x1 - y1, 1) / x1.sum())

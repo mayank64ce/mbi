@@ -42,7 +42,8 @@ class HE_Computations:
         for cl in self.candidates:
             if len(cl) == 1:
                 # One-way marginal: sum across columns
-                marginal = self._compute_oneway(enc_data, cl[0])
+                # marginal = self._compute_oneway(enc_data, cl[0])
+                marginal = self._compute_oneway_he(enc_data, cl[0])
             elif len(cl) == 2:
                 # Two-way marginal: element-wise multiply and sum
                 marginal = self._compute_twoway(enc_data, cl[0], cl[1])
@@ -51,8 +52,20 @@ class HE_Computations:
                 marginal = self._compute_kway(enc_data, cl)
 
             answers_enc.append(marginal)
+        
         self.answers_encrypted = answers_enc
         #return answers_enc
+
+    def compute_he(self, enc_data):
+        """
+        Docstring for compute_he
+        
+        :param enc_data: encrypted one hot encoded data
+
+        sets/returns:
+            answers_enc: list of row sums of 1-way and 2-way marginals
+        """
+        pass
 
     def _compute_oneway(self, enc_data, attr):
         """
@@ -63,7 +76,49 @@ class HE_Computations:
         # Sum across columns: ω(N-1) additions
         marginal = np.sum(enc_data[:, start_col:end_col], axis=0)
         return marginal
+    
+    def _compute_oneway_he(self, enc_data, attr):
+        """
+        HE-emulation of one-way marginal.
 
+        Model:
+        - Each row of enc_data is conceptually an encrypted ciphertext
+            with d packed slots.
+        - We accumulate rows using a loop (ciphertext additions).
+        - We rotate once to bring the attribute block to the front.
+
+        Contract:
+        - Let width = end_col - start_col.
+        - The first `width` slots of the returned vector contain:
+                np.sum(enc_data[:, start_col:end_col], axis=0)
+        - All remaining slots are undefined and must be ignored.
+
+        No masking is performed.
+        """
+        start_col, end_col = self.attr_column_ranges[attr]
+        length = end_col - start_col
+        d = enc_data.shape[1]
+
+        # Accumulator ciphertext (conceptual)
+
+        # Mayank: in real HE implementation, this will be a new PlainText encrypting zeroes
+        acc = np.zeros(d, dtype=enc_data.dtype)
+
+        # HE-style row-wise accumulation
+        # Mayank: in real HE implementation, this will sum all the rows 
+        for row in enc_data:
+            acc += row
+
+        # Rotate so the attribute block starts at slot 0
+
+        # Mayank: in real HE implementation, this will be a Rotate operation
+        packed = np.roll(acc, -start_col)
+        
+        # Mayank: this is here for compatibility and testing only, later on, this will be a 
+        # ciphertext with only the first `length` slots that are relevant
+
+        return packed[:length] 
+    
     def _compute_twoway(self, enc_data, attr1, attr2):
         """
         Compute two-way marginal for two attributes.
@@ -85,8 +140,14 @@ class HE_Computations:
             for j in range(n_bins2):
                 # Element-wise multiply and sum
                 marginal[i, j] = np.sum(cols1[:, i] * cols2[:, j])
-
         return marginal.flatten()
+    
+    def _compute_twoway_he(self, enc_data, attr1, attr2):
+        """
+        Compute two-way marginal for two attributes.
+        Element-wise multiply columns and sum.
+        """
+        pass
 
     def _compute_kway(self, enc_data, clique):
         """
@@ -133,7 +194,9 @@ class HE_Computations:
             wgt_ = wgt[marginal_index]
             x = self.answers_encrypted[marginal_index]
             xest = est_ans[marginal_index]
-            err = wgt_ * (np.linalg.norm(x - xest, 1) - bias_)
+            err = wgt_ * (np.linalg.norm(x - xest, 1) - bias_) 
+            # Mayank: in real HE implementation, the irrelevant slots in the ciphertext
+            # should not contribute to the error
             noise = self.enc_noise_select[self.used_up_gumble_samples]
             self.used_up_gumble_samples += 1
             err = err + (2 * max_sensitivity / epsilon) * noise
@@ -147,6 +210,5 @@ class HE_Computations:
         self.used_up_guassian_samples += n_samples
         y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
-
 
         return cl, y_enc
