@@ -179,7 +179,7 @@ class HE_Computations:
     def measure(self, marginal_index, sigma):
         # we can add checks here on whether enough samples are available, if not waht to do, some logs and debug
         marginal = self.answers_encrypted[marginal_index]
-        n_samples = len(marginal)
+        n_samples = len(marginal) # Mayank: this can also be computed using the start and end indices
         noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
         self.used_up_guassian_samples += n_samples
         y_enc = marginal + sigma * noise
