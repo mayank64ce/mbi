@@ -1,4 +1,5 @@
 ## MBI: Marginal-Based Estimation and Inference
+
 **(with applications to differential privacy)**
 
 <img src="pgm-logo.png" alt="drawing" width="123"/>
@@ -9,10 +10,25 @@
 
 ![Metrics for ryan112358/mbi repository](https://raw.githubusercontent.com/ryan112358/ryan112358/main/metrics.mbi.svg)
 
-
 Documentation can be found at
 [https://private-pgm.readthedocs.io/en/latest/](https://private-pgm.readthedocs.io/en/latest/)!
 
 Consider joining the [Google Differential Privacy community](https://join.slack.com/t/dp-open-source/shared_invite/zt-35hw483tz-nS5YOtGjxCHk3Ek7WiXvlg) in Slack.
 
+## Mayank
 
+To-Do:
+
+Simulation:
+
+- [x] \_compute_oneway_he
+- [ ] \_compute_twoway_he
+- [ ] meausure
+- [ ] select_measure_worst
+
+HE Implementation:
+
+- [ ] \_compute_oneway_he
+- [ ] \_compute_twoway_he
+- [ ] meausure
+- [ ] select_measure_worst
