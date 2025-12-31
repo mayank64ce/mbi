@@ -232,7 +232,7 @@ class HE_Computations:
         # Measure
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
-        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        noise = slice_vector(self.enc_noise_measure, self.used_up_guassian_samples, self.used_up_guassian_samples + n_samples)
         self.used_up_guassian_samples += n_samples
         y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
