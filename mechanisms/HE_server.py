@@ -4,6 +4,34 @@ from scipy.special import softmax
 from scipy.special import logsumexp
 
 
+def select_columns(matrix, start, end):
+    n_cols = matrix.shape[-1]
+    n_selected = end - start
+    
+    # Create selection matrix: (n_cols, n_selected)
+    # Each column j has a 1 at position (start + j)
+
+    # Mayank: Create the selection matrix and encrypt it
+    selection_matrix = np.zeros((n_cols, n_selected))
+    for i in range(n_selected):
+        selection_matrix[start + i, i] = 1.0
+    
+    # Matrix multiplication: (rows, n_cols) @ (n_cols, n_selected) = (rows, n_selected)
+    return matrix @ selection_matrix
+
+def slice_vector(vector, start, end):
+    length = vector.shape[0]
+    slice_length = end - start
+    
+    # Create selection matrix: (slice_length, length)
+    # Each row i has a 1 at position (start + i)
+    selection_matrix = np.zeros((slice_length, length))
+    for i in range(slice_length):
+        selection_matrix[i, start + i] = 1.0
+    
+    # Matrix-vector multiplication: (slice_length, length) @ (length,) = (slice_length,)
+    return selection_matrix @ vector
+
 
 class HE_Computations:
     def __init__(self, domain, workload_domain_size, candidates, enc_noise_measure, enc_noise_select):
@@ -25,7 +53,7 @@ class HE_Computations:
             self.attr_column_ranges[attr] = (col_offset, col_offset + n_bins)
             col_offset += n_bins
 
-    # add chunking method for noise
+    # add chunking method for noise        
 
     def compute(self, enc_data):
         """
@@ -39,6 +67,9 @@ class HE_Computations:
         """
         answers_enc = []
 
+        # Mayank: preprocess the oneway marginals with row-sums
+        self.oneway = np.sum(enc_data, axis=0)
+
         for cl in self.candidates:
             if len(cl) == 1:
                 # One-way marginal: sum across columns
@@ -46,7 +77,7 @@ class HE_Computations:
                 marginal = self._compute_oneway_he(enc_data, cl[0])
             elif len(cl) == 2:
                 # Two-way marginal: element-wise multiply and sum
-                marginal = self._compute_twoway(enc_data, cl[0], cl[1])
+                marginal = self._compute_twoway_he(enc_data, cl[0], cl[1])
             else:
                 # K-way marginal
                 marginal = self._compute_kway(enc_data, cl)
@@ -97,27 +128,11 @@ class HE_Computations:
         """
         start_col, end_col = self.attr_column_ranges[attr]
         length = end_col - start_col
-        d = enc_data.shape[1]
 
-        # Accumulator ciphertext (conceptual)
+        # select start_col to end_col from self.oneway vector
+        marginal = slice_vector(self.oneway, start_col, end_col)
 
-        # Mayank: in real HE implementation, this will be a new PlainText encrypting zeroes
-        acc = np.zeros(d, dtype=enc_data.dtype)
-
-        # HE-style row-wise accumulation
-        # Mayank: in real HE implementation, this will sum all the rows 
-        for row in enc_data:
-            acc += row
-
-        # Rotate so the attribute block starts at slot 0
-
-        # Mayank: in real HE implementation, this will be a Rotate operation
-        packed = np.roll(acc, -start_col)
-        
-        # Mayank: this is here for compatibility and testing only, later on, this will be a 
-        # ciphertext with only the first `length` slots that are relevant
-
-        return packed[:length] 
+        return marginal
     
     def _compute_twoway(self, enc_data, attr1, attr2):
         """
@@ -140,6 +155,7 @@ class HE_Computations:
             for j in range(n_bins2):
                 # Element-wise multiply and sum
                 marginal[i, j] = np.sum(cols1[:, i] * cols2[:, j])
+
         return marginal.flatten()
     
     def _compute_twoway_he(self, enc_data, attr1, attr2):
@@ -147,7 +163,16 @@ class HE_Computations:
         Compute two-way marginal for two attributes.
         Element-wise multiply columns and sum.
         """
-        pass
+        start1, end1 = self.attr_column_ranges[attr1]
+        start2, end2 = self.attr_column_ranges[attr2]
+        # Get columns for each attribute
+        cols1 = select_columns(enc_data, start1, end1)  # shape: (N, ω1)
+        cols2 = select_columns(enc_data, start2, end2)  # shape: (N, ω2)
+
+        marginal = cols1.T @ cols2
+
+        return marginal.flatten()
+
 
     def _compute_kway(self, enc_data, clique):
         """
@@ -180,7 +205,7 @@ class HE_Computations:
         # we can add checks here on whether enough samples are available, if not waht to do, some logs and debug
         marginal = self.answers_encrypted[marginal_index]
         n_samples = len(marginal) # Mayank: this can also be computed using the start and end indices
-        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        noise = slice_vector(self.enc_noise_measure, self.used_up_guassian_samples, self.used_up_guassian_samples + n_samples)
         self.used_up_guassian_samples += n_samples
         y_enc = marginal + sigma * noise
         return y_enc
@@ -193,7 +218,7 @@ class HE_Computations:
             bias_ = bias[marginal_index]
             wgt_ = wgt[marginal_index]
             x = self.answers_encrypted[marginal_index]
-            xest = est_ans[marginal_index]
+            xest = est_ans[marginal_index] # Mayank: this will need to be encoded into a plain text
             err = wgt_ * (np.linalg.norm(x - xest, 1) - bias_) 
             # Mayank: in real HE implementation, the irrelevant slots in the ciphertext
             # should not contribute to the error
@@ -201,6 +226,7 @@ class HE_Computations:
             self.used_up_gumble_samples += 1
             err = err + (2 * max_sensitivity / epsilon) * noise
             errors = np.append(errors, err)
+
         cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
 
         # Measure

@@ -22,7 +22,7 @@ To-Do:
 Simulation:
 
 - [x] \_compute_oneway_he
-- [ ] \_compute_twoway_he
+- [x] \_compute_twoway_he
 - [x] meausure
 - [ ] select_measure_worst
 
