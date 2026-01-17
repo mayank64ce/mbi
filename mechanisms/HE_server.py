@@ -124,7 +124,7 @@ class HE_Computations:
         y_enc = marginal + sigma * noise
         return y_enc
 
-    def select_measure_worst(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
+    def select_measure_worst_l1(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])
         # Select
         for marginal_index in candidates_indices.values():
@@ -133,7 +133,36 @@ class HE_Computations:
             wgt_ = wgt[marginal_index]
             x = self.answers_encrypted[marginal_index]
             xest = est_ans[marginal_index]
+            # print("Error range:  -----> ",min(abs(x-xest)), max(abs(x-xest)))
             err = wgt_ * (np.linalg.norm(x - xest, 1) - bias_)
+            noise = self.enc_noise_select[self.used_up_gumble_samples]
+            self.used_up_gumble_samples += 1
+            err = err + (2 * max_sensitivity / epsilon) * noise
+            errors = np.append(errors, err)
+        cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
+
+        # Measure
+        marginal = self.answers_encrypted[cl_dec]
+        n_samples = len(marginal)
+        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        self.used_up_guassian_samples += n_samples
+        y_enc = marginal + sigma * noise
+        cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
+
+
+        return cl, y_enc
+
+    def select_measure_worst_squared_l2(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
+        errors = np.array([])
+        # Select
+        for marginal_index in candidates_indices.values():
+            #reduce number of additions by taking only domain size
+            bias_ = bias[marginal_index]
+            wgt_ = wgt[marginal_index]
+            x = self.answers_encrypted[marginal_index]
+            xest = est_ans[marginal_index]
+            # print("Error range:  -----> ",min(abs(x-xest)), max(abs(x-xest)))
+            err = wgt_ * (np.sum((x-xest)**2) - bias_)
             noise = self.enc_noise_select[self.used_up_gumble_samples]
             self.used_up_gumble_samples += 1
             err = err + (2 * max_sensitivity / epsilon) * noise

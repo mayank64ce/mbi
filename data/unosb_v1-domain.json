@@ -1,0 +1,13 @@
+{
+  "age_bin": 8,
+  "bmi_bin": 4,
+  "sodium_bin": 4,
+  "creat_bin": 7,
+  "inr_bin": 8,
+  "bili_bin": 7,
+  "albumin_bin": 3,
+  "meld_bin": 11,
+  "time_bin": 6,
+  "event_status": 2
+}
+

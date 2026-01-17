@@ -145,9 +145,12 @@ class AIM(Mechanism):
 
     def calculate_max_gaussian_samples(self, domain, workload, rho):
         pass
+        return 10000
 
     def calculate_max_gumbel_samples(self, domain, workload, rho):
-            pass
+        pass
+        return 10000
+
 
 
     def run(self, data, workload, num_synth_rows=None, initial_cliques=None):
@@ -240,7 +243,7 @@ class AIM(Mechanism):
                 sensitivity.append(abs(wt))
             max_sensitivity = max(sensitivity)
 
-            cl, y_enc = he.select_measure_worst(small_candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt)
+            cl, y_enc = he.select_measure_worst_l1(small_candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt)
             y = y_enc.copy() # decrypt here
 
             # cl = self.worst_approximated(
@@ -287,8 +290,10 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params['dataset'] = '../data/unosb_v1.csv'
-    params['domain'] = '../data/unosb_v1-domain.json'
+    params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
+    params['domain'] = '../data/unosb_v1_smallest-domain.json'
+    # params['domain'] = '../data/unosb_v1-domain.json'
     params["epsilon"] = 10
     params["delta"] = 1e-9
     params["noise"] = "laplace"
@@ -361,11 +366,11 @@ if __name__ == "__main__":
     #     synth.df.to_csv(args.save, index=False)
     #
     #
-    # errors = []
-    # # for proj, wgt in workload_all:
-    # for proj, wgt in workload: #_all:
-    #     X = data.project(proj).datavector()
-    #     Y = synth.project(proj).datavector()
-    #     e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
-    #     errors.append(e)
-    # print("Average Error: ", np.mean(errors))
+    errors = []
+    # for proj, wgt in workload_all:
+    for proj, wgt in workload: #_all:
+        X = data.project(proj).datavector()
+        Y = synth.project(proj).datavector()
+        e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
+        errors.append(e)
+    print("Average Error: ", np.mean(errors))
