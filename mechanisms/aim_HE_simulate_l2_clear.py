@@ -25,7 +25,7 @@ from scipy.optimize import bisect
 import pandas as pd
 from mbi import Factor
 import argparse
-from HE_server import HE_Computations
+from HE_server_clear import HE_Computations
 
 
 def powerset(iterable):
@@ -176,7 +176,7 @@ class AIM(Mechanism):
         enc_noise_select = self.get_unit_gumbel_samples(gumbel_samples_needed)
         he = HE_Computations(domain, workload_domain_size, candidates, enc_noise_measure, enc_noise_select)
         #answers_enc =
-        he.compute_he(data_enc)
+        he.compute(data_enc)
         # Sikha end
 
 
@@ -197,7 +197,7 @@ class AIM(Mechanism):
         #for cl in oneway_indices:
         for cl, marginal_index in oneway_indices.items():
             #marginal_index = oneway_indices[cl]
-            y_enc = he.measure_he(marginal_index, sigma) # need to figure this out
+            y_enc = he.measure(marginal_index, sigma) # need to figure this out
             #x = data.project(cl).datavector()
             #y = x + self.gaussian_noise(sigma, x.size)
             y = y_enc.copy() # Decrypt here
