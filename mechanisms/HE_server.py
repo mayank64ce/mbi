@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import time
 from scipy.special import softmax
 from scipy.special import logsumexp
 from openfhe import *
@@ -45,8 +46,8 @@ class HE_Computations:
         self.answers_encrypted = None
         self.used_up_guassian_samples = 0
         self.used_up_gumble_samples = 0
-        self.enc_noise_measure = self.encrypt_noise(enc_noise_measure)
-        self.enc_noise_select = self.encrypt_noise(enc_noise_select)
+        self.enc_noise_measure = enc_noise_measure
+        self.enc_noise_select = enc_noise_select
 
         # Pre-compute column indices for each attribute in OHE matrix
         self.attr_column_ranges = {}
@@ -55,6 +56,38 @@ class HE_Computations:
             n_bins = domain[attr]
             self.attr_column_ranges[attr] = (col_offset, col_offset + n_bins)
             col_offset += n_bins
+        
+        self.get_rotation_keys()
+        
+    
+    def get_rotation_keys(self):
+        """
+        Compute marginals for all candidates using OHE data.
+
+        Args:
+            enc_data: One-hot encoded data matrix (n_records, total_bins)
+
+        Returns:
+            list: List of marginals where index corresponds to candidates list
+        """
+
+        max_rot = 0
+        print("Determining rotation keys...")
+        for cl in tqdm(self.candidates):
+            if len(cl) == 1:
+                # One-way marginal: sum across columns
+                start, end = self.attr_column_ranges[cl[0]]
+                max_rot = max(max_rot, end-start)
+
+            elif len(cl) == 2:
+                # Two-way marginal: element-wise multiply and sum
+                start1, end1 = self.attr_column_ranges[cl[0]]
+                start2, end2 = self.attr_column_ranges[cl[1]]
+                max_rot = max(max_rot, (end2-start2)*(end1-start1))
+
+        onp.gen_rotation_keys(self.keys.secretKey, np.arange(0, max_rot+2).tolist())
+                
+
     
     def combine(self, vecs):
         # how to handle if vecs[0] has no shape ??
@@ -120,7 +153,7 @@ class HE_Computations:
             rots.append(i)
 
         
-        onp.gen_rotation_keys(keys.secretKey, rots)
+        # onp.gen_rotation_keys(keys.secretKey, rots)
 
         selector_vector = np.zeros(self.len_vec)
         selector_vector[0] = 1.0
@@ -185,7 +218,7 @@ class HE_Computations:
             list: List of marginals where index corresponds to candidates list
         """
         answers_enc = []
-
+        print("Running compute step...")
         for cl in self.candidates:
             if len(cl) == 1:
                 # One-way marginal: sum across columns
@@ -202,14 +235,14 @@ class HE_Computations:
         #return answers_enc
     
     def compute_he(self, data):
-
+        start = time.time()
         # encrypt the data
         self.encrypt_data(data)
 
         answers_enc = []
         # answers = []
 
-        for cl in self.candidates:
+        for cl in tqdm(self.candidates):
             if len(cl) == 1:
                 # One-way marginal: sum across columns
                 marginal_he = self._compute_oneway_he(self.enc_data, cl[0])
@@ -227,6 +260,10 @@ class HE_Computations:
             # answers.append(marginal)
         # breakpoint()
         self.answers_encrypted = answers_enc
+        elapsed = time.time() - start
+
+        print(f"Compute step ran for {elapsed / 60} mins")
+
         del self.enc_data
 
     def _compute_oneway(self, enc_data, attr):
@@ -341,10 +378,12 @@ class HE_Computations:
 
         noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
 
+        noise_enc = self.encrypt_noise(noise)
+
         noised_marginal = []
 
         for i, ct in enumerate(marginal):
-            noised_marginal.append((ct + noise[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
 
         noised_marginal = np.array(noised_marginal)
         
@@ -411,8 +450,11 @@ class HE_Computations:
 
             # err = wgt_ * (np.sum((x-xest)**2) - bias_)
             noise = self.enc_noise_select[self.used_up_gumble_samples]
+
+            noise_enc = self.encrypt_noise([noise])
+
             self.used_up_gumble_samples += 1
-            err = norm_he + noise * (2 * max_sensitivity / epsilon)
+            err = norm_he + noise_enc[0] * (2 * max_sensitivity / epsilon)
             err = err.decrypt(self.keys.secretKey, unpack_type="original")[0]
             errors = np.append(errors, err)
         cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
@@ -421,6 +463,7 @@ class HE_Computations:
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
         noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        noise_enc = self.encrypt_noise(noise)
         self.used_up_guassian_samples += n_samples
         # y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
@@ -428,7 +471,7 @@ class HE_Computations:
         noised_marginal = []
 
         for i, ct in enumerate(marginal):
-            noised_marginal.append((ct + noise[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
 
         noised_marginal = np.array(noised_marginal)
 

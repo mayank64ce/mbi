@@ -48,6 +48,7 @@ class HE_Computations:
                 marginal = self._compute_twoway(enc_data, cl[0], cl[1])
             else:
                 # K-way marginal
+                continue
                 marginal = self._compute_kway(enc_data, cl)
 
             answers_enc.append(marginal)
