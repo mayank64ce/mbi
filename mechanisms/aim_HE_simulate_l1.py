@@ -265,7 +265,7 @@ class AIM(Mechanism):
                 data.domain, measurements, iters=self.max_iters, potentials=potentials, callback_fn=lambda *_: None
             )
             w = model.project(cl).datavector()
-            # print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
+            print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
             print("(!!!!!!!!!!!!!!!!!!!!!!)                    Error in this round", np.linalg.norm(w - z, 1))
             if np.linalg.norm(w - z, 1) <= sigma * np.sqrt(2 / np.pi) * n:
                 print("(!!!!!!!!!!!!!!!!!!!!!!) Reducing sigma", sigma / 2)

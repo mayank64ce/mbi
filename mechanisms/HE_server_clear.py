@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import softmax
 from scipy.special import logsumexp
+from tqdm import tqdm
 
 
 
@@ -128,7 +129,7 @@ class HE_Computations:
     def select_measure_worst_l1(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])
         # Select
-        for marginal_index in candidates_indices.values():
+        for marginal_index in tqdm(candidates_indices.values()):
             #reduce number of additions by taking only domain size
             bias_ = bias[marginal_index]
             wgt_ = wgt[marginal_index]
@@ -156,7 +157,7 @@ class HE_Computations:
     def select_measure_worst_squared_l2(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])
         # Select
-        for marginal_index in candidates_indices.values():
+        for marginal_index in tqdm(candidates_indices.values()):
             #reduce number of additions by taking only domain size
             bias_ = bias[marginal_index]
             wgt_ = wgt[marginal_index]

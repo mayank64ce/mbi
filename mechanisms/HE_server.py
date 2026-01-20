@@ -189,9 +189,9 @@ class HE_Computations:
         
         self.enc_data = enc_data
     
-    def encrypt_noise(self, noise_vector, fhe_type="C"):
+    def encrypt_noise(self, noise_vector, fhe_type="C", show_progress=True):
         enc_noise = []
-        for val in tqdm(noise_vector):
+        for val in tqdm(noise_vector, disable=not show_progress):
             new_val = np.zeros(self.len_vec)
             new_val[0] = val
             ct_noise = onp.array(
@@ -228,6 +228,7 @@ class HE_Computations:
                 marginal = self._compute_twoway(enc_data, cl[0], cl[1])
             else:
                 # K-way marginal
+                continue
                 marginal = self._compute_kway(enc_data, cl)
 
             answers_enc.append(marginal)
@@ -392,7 +393,7 @@ class HE_Computations:
     def select_measure_worst_l1(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])
         # Select
-        for marginal_index in candidates_indices.values():
+        for marginal_index in tqdm(candidates_indices.values()):
             #reduce number of additions by taking only domain size
             bias_ = bias[marginal_index]
             wgt_ = wgt[marginal_index]
@@ -434,7 +435,7 @@ class HE_Computations:
             # xest = np.clip(xest_orig, -1e10, 1e10)
             xest = np.where(np.abs(xest_orig) < 1e-10, 0.0, xest_orig)
             try:
-                xest = self.encrypt_noise(xest, fhe_type="P")
+                xest = self.encrypt_noise(xest, fhe_type="P", show_progress=False)
             except:
                 breakpoint()
 
@@ -451,7 +452,7 @@ class HE_Computations:
             # err = wgt_ * (np.sum((x-xest)**2) - bias_)
             noise = self.enc_noise_select[self.used_up_gumble_samples]
 
-            noise_enc = self.encrypt_noise([noise])
+            noise_enc = self.encrypt_noise([noise], show_progress=False)
 
             self.used_up_gumble_samples += 1
             err = norm_he + noise_enc[0] * (2 * max_sensitivity / epsilon)
@@ -463,7 +464,7 @@ class HE_Computations:
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
         noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
-        noise_enc = self.encrypt_noise(noise)
+        noise_enc = self.encrypt_noise(noise, show_progress=False)
         self.used_up_guassian_samples += n_samples
         # y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
