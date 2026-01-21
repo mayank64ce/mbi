@@ -145,9 +145,11 @@ class AIM(Mechanism):
 
     def calculate_max_gaussian_samples(self, domain, workload, rho):
         pass
+        return 10000
 
     def calculate_max_gumbel_samples(self, domain, workload, rho):
-            pass
+        pass
+        return 10000
 
 
     def run(self, data, workload, num_synth_rows=None, initial_cliques=None):
@@ -246,7 +248,7 @@ class AIM(Mechanism):
             # cl = self.worst_approximated(
             #     small_candidates, answers, model, epsilon, sigma
             # )
-            # print('Measuring Clique', cl)
+            print('Measuring Clique', cl)
             n = data.domain.size(cl)
             # x = data.project(cl).datavector()
             # y = x + self.gaussian_noise(sigma, n)
@@ -258,11 +260,12 @@ class AIM(Mechanism):
             # TODO: check if it helps to call maximal_subsets here
             pcliques = list(set(M.clique for M in measurements))
             potentials = model.potentials.expand(pcliques)
+            print("Updating Model...")
             model = estimation.mirror_descent(
                 data.domain, measurements, iters=self.max_iters, potentials=potentials, callback_fn=lambda *_: None
             )
             w = model.project(cl).datavector()
-            # print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
+            print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
             print("(!!!!!!!!!!!!!!!!!!!!!!)                    Error in this round", np.linalg.norm(w - z, 1))
             if np.linalg.norm(w - z, 1) <= sigma * np.sqrt(2 / np.pi) * n:
                 print("(!!!!!!!!!!!!!!!!!!!!!!) Reducing sigma", sigma / 2)
@@ -287,8 +290,11 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params['dataset'] = '../data/unosb_v1.csv'
-    params['domain'] = '../data/unosb_v1-domain.json'
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['dataset'] = '../data/unosb_v1.csv'
+    params['dataset'] = '../data/compas_train.csv'
+    # params['domain'] = '../data/unosb_v1-domain.json'
+    params['domain'] = '../data/compass-domain.json'
     params["epsilon"] = 10
     params["delta"] = 1e-9
     params["noise"] = "laplace"
@@ -361,11 +367,11 @@ if __name__ == "__main__":
     #     synth.df.to_csv(args.save, index=False)
     #
     #
-    # errors = []
-    # # for proj, wgt in workload_all:
-    # for proj, wgt in workload: #_all:
-    #     X = data.project(proj).datavector()
-    #     Y = synth.project(proj).datavector()
-    #     e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
-    #     errors.append(e)
-    # print("Average Error: ", np.mean(errors))
+    errors = []
+    # for proj, wgt in workload_all:
+    for proj, wgt in workload: #_all:
+        X = data.project(proj).datavector()
+        Y = synth.project(proj).datavector()
+        e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
+        errors.append(e)
+    print("Average Error: ", np.mean(errors))
