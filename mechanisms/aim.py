@@ -183,9 +183,12 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params["dataset"] = "../data/adult.csv"
-    params["domain"] = "../data/adult-domain.json"
-    params["epsilon"] = 1.0
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['dataset'] = '../data/unosb_v1.csv'
+    params['dataset'] = '../data/compas_train.csv'
+    # params['domain'] = '../data/unosb_v1-domain.json'
+    params['domain'] = '../data/compass-domain.json'
+    params["epsilon"] = 10
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80
