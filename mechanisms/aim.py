@@ -185,9 +185,11 @@ def default_params():
     params = {}
     # params['dataset'] = '../data/unosb_v1_clean.csv'
     # params['dataset'] = '../data/unosb_v1.csv'
-    params['dataset'] = '../data/compas_train.csv'
+    # params['dataset'] = '../data/compas_train.csv'
     # params['domain'] = '../data/unosb_v1-domain.json'
-    params['domain'] = '../data/compass-domain.json'
+    # params['domain'] = '../data/compass-domain.json'
+    params['dataset'] = '../data/adult.csv'
+    params['domain'] = '../data/adult-domain.json'
     params["epsilon"] = 10
     params["delta"] = 1e-9
     params["noise"] = "laplace"
