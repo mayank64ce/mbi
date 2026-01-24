@@ -295,9 +295,13 @@ def default_params():
     """
     params = {}
     # params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
-    params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
     # params['domain'] = '../data/unosb_v1_smallest-domain.json'
-    params['domain'] = '../data/unosb_v1-domain.json'
+    # params['domain'] = '../data/unosb_v1-domain.json'
+    # params['dataset'] = '../data/compas_train.csv'
+    # params['domain'] = '../data/compass-domain.json'
+    params['dataset'] = '../data/breast_train.csv'
+    params['domain'] = '../data/breast-domain.json'
     params["epsilon"] = 1.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
@@ -365,7 +369,7 @@ if __name__ == "__main__":
     model, synth = mech.run(data, workload)
     joblib.dump(model, "../data/aim_adult_generator_eps10.joblib")
     stop_time = time.time()
-    print("Time taken to train and generate:", stop_time-start_time)
+    print("Time taken to train and generate:", (stop_time-start_time)/60.0. " minutes")
     # if args.save is not None:
     #     synth.df.to_csv(args.save, index=False)
     #
