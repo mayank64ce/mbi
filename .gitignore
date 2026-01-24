@@ -12,3 +12,5 @@ __pycache__/
 # IDE and OS specific files
 .vscode/
 .ipynb_checkpoints/ 
+
+data/logs/*

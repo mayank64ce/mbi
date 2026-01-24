@@ -7,6 +7,8 @@ for debugging, but keeping the default value of 80 for any official comparisons 
 Note that we assume in this file that the data has been appropriately preprocessed so that there are no large-cardinality categorical attributes.  If there are, we recommend using something like "compress_domain" from mst.py.  Since our paper evaluated already-preprocessed datastes, we did not implement that here for simplicity.
 """
 import time
+import sys
+import os
 
 import joblib
 import numpy as np
@@ -26,6 +28,22 @@ import pandas as pd
 from mbi import Factor
 import argparse
 from HE_server import HE_Computations
+
+
+class Tee:
+    def __init__(self, filepath, mode='w'):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.terminal = sys.stdout
+        self.file = open(filepath, mode)
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.file.write(message)
+        self.file.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.file.flush()
 
 
 def powerset(iterable):
@@ -145,11 +163,11 @@ class AIM(Mechanism):
 
     def calculate_max_gaussian_samples(self, domain, workload, rho):
         pass
-        return 2000
+        return 10000
 
     def calculate_max_gumbel_samples(self, domain, workload, rho):
         pass
-        return 2000
+        return 10000
 
 
 
@@ -296,10 +314,12 @@ def default_params():
     """
     params = {}
     # params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
-    params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
     # params['domain'] = '../data/unosb_v1_smallest-domain.json'
-    params['domain'] = '../data/unosb_v1-domain.json'
-    params["epsilon"] = 10
+    # params['domain'] = '../data/unosb_v1-domain.json'
+    params['dataset'] = '../data/breast_train.csv'
+    params['domain'] = '../data/breast-domain.json'
+    params["epsilon"] = 1.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80
@@ -333,10 +353,26 @@ if __name__ == "__main__":
         type=int,
         help="maximum number of cells for marginals in workload",
     )
+    parser.add_argument("--seed", type=int, help="Seed for reproducibility", default=0)
     parser.add_argument("--save", type=str, help="path to save synthetic data")
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()
+
+    print(f"Seed : {args.seed}")
+    np.random.seed(args.seed)
+    seed_prng = np.random.RandomState(args.seed)
+
+    # setting up the save path
+    dataset_name = args.dataset.split("/")[-1].replace(".csv", "")
+
+    args.save = f"../data/logs/run_{args.seed}/{dataset_name}/synth_fhaim_l2_eps_{args.epsilon}.csv" # data
+    model_save_path = f"../data/logs/run_{args.seed}/{dataset_name}/fhaim_l2_generator_eps_{args.epsilon}.joblib" # model
+    log_dir = f"../data/logs/run_{args.seed}/{dataset_name}/fhaim_l2_eps_{args.epsilon}.log"
+
+    os.makedirs(os.path.dirname(args.save), exist_ok=True)
+
+    sys.stdout = Tee(log_dir)
 
     data = Dataset.load(args.dataset, args.domain)
 
@@ -364,11 +400,11 @@ if __name__ == "__main__":
         max_iters=args.max_iters,
     )
     model, synth = mech.run(data, workload)
-    joblib.dump(model, "../data/aim_adult_generator_eps10.joblib")
+    joblib.dump(model, model_save_path)
     stop_time = time.time()
-    print("Time taken to train and generate:", stop_time-start_time)
-    # if args.save is not None:
-    #     synth.df.to_csv(args.save, index=False)
+    print("Time taken to train and generate:", (stop_time-start_time)/60.0, " minutes")
+    if args.save is not None:
+        synth.df.to_csv(args.save, index=False)
     #
     #
     errors = []

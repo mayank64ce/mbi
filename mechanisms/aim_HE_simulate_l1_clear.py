@@ -7,6 +7,8 @@ for debugging, but keeping the default value of 80 for any official comparisons 
 Note that we assume in this file that the data has been appropriately preprocessed so that there are no large-cardinality categorical attributes.  If there are, we recommend using something like "compress_domain" from mst.py.  Since our paper evaluated already-preprocessed datastes, we did not implement that here for simplicity.
 """
 import time
+import sys
+import os
 
 import joblib
 import numpy as np
@@ -27,6 +29,22 @@ from tqdm import tqdm
 from mbi import Factor
 import argparse
 from HE_server_clear import HE_Computations
+
+
+class Tee:
+    def __init__(self, filepath, mode='w'):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.terminal = sys.stdout
+        self.file = open(filepath, mode)
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.file.write(message)
+        self.file.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.file.flush()
 
 
 def powerset(iterable):
@@ -336,10 +354,26 @@ if __name__ == "__main__":
         type=int,
         help="maximum number of cells for marginals in workload",
     )
+    parser.add_argument("--seed", type=int,help="Seed for reproducibility", default=0)
     parser.add_argument("--save", type=str, help="path to save synthetic data")
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()
+
+    print(f"Seed : {args.seed}")
+    np.random.seed(args.seed)
+    seed_prng = np.random.RandomState(args.seed)
+
+    # setting up the save path
+    dataset_name = args.dataset.split("/")[-1].replace(".csv", "")
+
+    args.save = f"../data/logs/run_{args.seed}/{dataset_name}/synth_aim_l1_eps_{args.epsilon}.csv" # data
+    model_save_path = f"../data/logs/run_{args.seed}/{dataset_name}/aim_l1_generator_eps_{args.epsilon}.joblib" # model
+    log_dir = f"../data/logs/run_{args.seed}/{dataset_name}/aim_l1_eps_{args.epsilon}.log"
+
+    os.makedirs(os.path.dirname(args.save), exist_ok=True)
+
+    sys.stdout = Tee(log_dir)
 
     data = Dataset.load(args.dataset, args.domain)
 
@@ -363,16 +397,17 @@ if __name__ == "__main__":
     mech = AIM(
         args.epsilon,
         args.delta,
+        prng=seed_prng,
         max_model_size=args.max_model_size,
         max_iters=args.max_iters,
     )
     model, synth = mech.run(data, workload)
-    joblib.dump(model, "../data/aim_adult_generator_eps10.joblib")
+    joblib.dump(model, model_save_path)
     stop_time = time.time()
-    print("Time taken to train and generate:", (stop_time-start_time)/60.0. " minutes")
-    # if args.save is not None:
-    #     synth.df.to_csv(args.save, index=False)
-    #
+    print("Time taken to train and generate:", (stop_time-start_time)/60.0, " minutes")
+    if args.save is not None:
+        synth.df.to_csv(args.save, index=False)
+    
     #
     errors = []
     # for proj, wgt in workload_all:
