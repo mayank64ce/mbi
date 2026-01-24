@@ -298,7 +298,7 @@ def default_params():
     params['dataset'] = '../data/unosb_v1_clean.csv'
     # params['domain'] = '../data/unosb_v1_smallest-domain.json'
     params['domain'] = '../data/unosb_v1-domain.json'
-    params["epsilon"] = 10
+    params["epsilon"] = 1.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80

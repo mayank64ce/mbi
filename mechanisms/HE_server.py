@@ -18,6 +18,27 @@ def check(vec_ct, keys):
     
     return np.array(decrypted)
 
+def compute_l1_norm_he(enc_error, len_vec, batch_size, scale=None):
+    if scale:
+        enc_error *= (1/scale)
+    error_data = enc_error.data
+    cc = error_data.GetCryptoContext()
+    length = enc_error.original_shape[0]
+    
+    # sign = compute_signum_he(cc, error_data)
+    # norm = cc.EvalInnerProduct(sign, error_data, length)
+    abs_error = compute_abs_polynomial(cc, error_data)
+    norm = cc.EvalSum(abs_error, length)
+
+    norm = CTArray(
+        norm, (len_vec, ), batch_size, (len_vec, 1), ArrayEncodingType.ROW_MAJOR
+    )
+
+    if scale:
+        norm *= scale
+
+    return norm
+
 
 def compute_squared_l2_norm_he(enc_error, len_vec):
     error_data = enc_error.data
@@ -33,6 +54,19 @@ def compute_squared_l2_norm_he(enc_error, len_vec):
     )
 
     return norm
+
+def compute_abs_polynomial(cc, ciphertext):
+    '''
+    Evaluate |x| approximation on encrypted ciphertext
+    p(x) = 0.0556 + 3.6049*x^2 - 11.9929*x^4 + 24.4175*x^6 - 23.6236*x^8 + 8.5577*x^10
+    '''
+    # Coefficients for p(y) where y = x^2
+    coeffs = [0.0556, 3.6049, -11.9929, 24.4175, -23.6236, 8.5577]
+    
+    # METHOD A: Use OpenFHE's built-in EvalPoly (recommended)
+    x_squared = cc.EvalSquare(ciphertext)
+    result = cc.EvalPoly(x_squared, coeffs)
+    return result
 
 
 class HE_Computations:
@@ -392,31 +426,64 @@ class HE_Computations:
 
     def select_measure_worst_l1(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])
+
+        epsilon = float(epsilon)
+
         # Select
-        for marginal_index in tqdm(candidates_indices.values()):
+        for marginal_index in candidates_indices.values():
             #reduce number of additions by taking only domain size
-            bias_ = bias[marginal_index]
-            wgt_ = wgt[marginal_index]
+            bias_ = float(bias[marginal_index])
+            wgt_ = float(wgt[marginal_index])
             x = self.answers_encrypted[marginal_index]
-            xest = est_ans[marginal_index]
+            xest_orig = est_ans[marginal_index]
             # print("Error range:  -----> ",min(abs(x-xest)), max(abs(x-xest)))
-            err = wgt_ * (np.linalg.norm(x - xest, 1) - bias_)
+
+            # xest = np.clip(xest_orig, -1e10, 1e10)
+            xest = np.where(np.abs(xest_orig) < 1e-10, 0.0, xest_orig)
+            try:
+                xest = self.encrypt_noise(xest, fhe_type="P", show_progress=False)
+            except:
+                breakpoint()
+
+            diff = []
+            for a, b in zip(x, xest):
+                diff.append(a-b)
+            
+            diff_comb = self.combine(diff)
+            
+            norm_he = compute_l1_norm_he(diff_comb, self.len_vec, self.batch_size,scale=10000)
+
+            norm_he = (norm_he + (-bias_)) * wgt_
+
+            # err = wgt_ * (np.sum((x-xest)**2) - bias_)
             noise = self.enc_noise_select[self.used_up_gumble_samples]
+
+            noise_enc = self.encrypt_noise([noise], show_progress=False)
+
             self.used_up_gumble_samples += 1
-            err = err + (2 * max_sensitivity / epsilon) * noise
+            err = norm_he + noise_enc[0] * (2 * max_sensitivity / epsilon)
+            err = err.decrypt(self.keys.secretKey, unpack_type="original")[0]
             errors = np.append(errors, err)
         cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
-
+        # breakpoint()
         # Measure
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
         noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        noise_enc = self.encrypt_noise(noise, show_progress=False)
         self.used_up_guassian_samples += n_samples
-        y_enc = marginal + sigma * noise
+        # y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
 
+        noised_marginal = []
 
-        return cl, y_enc
+        for i, ct in enumerate(marginal):
+            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+
+        noised_marginal = np.array(noised_marginal)
+
+        # breakpoint()
+        return cl, noised_marginal
 
     def select_measure_worst_squared_l2(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
         errors = np.array([])

@@ -174,7 +174,7 @@ class AIM(Mechanism):
         enc_noise_select = self.get_unit_gumbel_samples(gumbel_samples_needed)
         he = HE_Computations(domain, workload_domain_size, candidates, enc_noise_measure, enc_noise_select)
         #answers_enc =
-        he.compute(data_enc)
+        he.compute_he(data_enc)
         # Sikha end
 
 
@@ -195,7 +195,7 @@ class AIM(Mechanism):
         #for cl in oneway_indices:
         for cl, marginal_index in oneway_indices.items():
             #marginal_index = oneway_indices[cl]
-            y_enc = he.measure(marginal_index, sigma) # need to figure this out
+            y_enc = he.measure_he(marginal_index, sigma) # need to figure this out
             #x = data.project(cl).datavector()
             #y = x + self.gaussian_noise(sigma, x.size)
             y = y_enc.copy() # Decrypt here
@@ -290,11 +290,11 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
-    # params['dataset'] = '../data/unosb_v1_clean.csv'
-    params['domain'] = '../data/unosb_v1_smallest-domain.json'
-    # params['domain'] = '../data/unosb_v1-domain.json'
-    params["epsilon"] = 10
+    # params['dataset'] = '../data/unosb_v1_clean_smallest.csv'
+    params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['domain'] = '../data/unosb_v1_smallest-domain.json'
+    params['domain'] = '../data/unosb_v1-domain.json'
+    params["epsilon"] = 1.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80
