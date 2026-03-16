@@ -9,6 +9,7 @@ Note that we assume in this file that the data has been appropriately preprocess
 import time
 import sys
 import os
+import tracemalloc
 
 import joblib
 import numpy as np
@@ -213,6 +214,7 @@ class AIM(Mechanism):
         # Sikha start ----- MEASURE ONE WAY
         oneway_indices = {value:i for i, value in enumerate(candidates) if value in oneway}
         #for cl in oneway_indices:
+        t_oneway_measure_start = time.time()
         for cl, marginal_index in oneway_indices.items():
             #marginal_index = oneway_indices[cl]
             y_enc = he.measure_he(marginal_index, sigma) # need to figure this out
@@ -221,6 +223,8 @@ class AIM(Mechanism):
             y = y_enc.copy() # Decrypt here
             # Sikha end
             measurements.append(LinearMeasurement(y, cl, stddev=sigma))
+        t_oneway_measure = time.time() - t_oneway_measure_start
+        print(f"[TIMING] One-way marginals measure total: {t_oneway_measure:.3f}s")
 
         zeros = self.structural_zeros
         # NOTE: Haven't incorproated structural zeros back yet after refactoring
@@ -359,6 +363,8 @@ if __name__ == "__main__":
     parser.set_defaults(**default_params())
     args = parser.parse_args()
 
+    tracemalloc.start()
+
     print(f"Seed : {args.seed}")
     np.random.seed(args.seed)
     seed_prng = np.random.RandomState(args.seed)
@@ -415,3 +421,8 @@ if __name__ == "__main__":
         e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
         errors.append(e)
     print("Average Error: ", np.mean(errors))
+
+    current, peak = tracemalloc.get_traced_memory()
+    print(f"[MEMORY] Current: {current / 1024 / 1024:.2f} MB")
+    print(f"[MEMORY] Peak: {peak / 1024 / 1024:.2f} MB")
+    tracemalloc.stop()

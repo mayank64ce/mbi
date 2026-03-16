@@ -1,0 +1,66 @@
+\begin{table}[]
+    \centering
+    \footnotesize{
+    \begin{tabular}{l l r r r}
+    \toprule
+         &  Subprot. & \textsc{Cancer} & \textsc{Compas} & \textsc{Diabetes}\\
+    \midrule
+        $\pCOMP$ & $\pOM$ & 30.7s & 24.8s & 32.0s \\
+                  & $\pTM$ & 682s & 292s & 622s \\
+    \midrule
+        $\pSEL$ & $\pERR$ & 129s & 59s & 101s \\
+                & $\pGUMBEL$ & 4.8s & 3.9s & 3.9s \\
+
+    \midrule
+        $\pMSR$ & $\pGAUSS$ & 0.28s & 0.34s & 0.40s \\
+    \bottomrule
+    \end{tabular}
+    }
+    \caption{\textbf{Computational Cost}: FHAIM-L1 Runtimes}
+    \label{tab:runtimes-l1}
+\end{table}
+
+\begin{table}[]
+    \centering
+    \footnotesize{
+    \begin{tabular}{l l r r r}
+    \toprule
+         &  Subprot. & \textsc{Cancer} & \textsc{Compas} & \textsc{Diabetes}\\
+    \midrule
+        $\pCOMP$ & $\pOM$ & 30.6s & 24.7s & 32.0s \\
+                  & $\pTM$ & 680s & 293s & 628s \\
+    \midrule
+        $\pSEL$ & $\pERR$ & 140s & 70s & 112s \\
+                & $\pGUMBEL$ & 4.8s & 4.0s & 4.0s \\
+
+    \midrule
+        $\pMSR$ & $\pGAUSS$ & 1.18s & 0.70s & 2.25s \\
+    \bottomrule
+    \end{tabular}
+    }
+    \caption{\textbf{Computational Cost}: FHAIM-L2 Runtimes}
+    \label{tab:runtimes-l2}
+\end{table}
+
+% Combined L1/L2 table
+\begin{table}[]
+    \centering
+    \footnotesize{
+    \begin{tabular}{l l r r r}
+    \toprule
+         &  Subprot. & \textsc{Cancer} & \textsc{Compas} & \textsc{Diabetes}\\
+    \midrule
+        $\pCOMP$ & $\pOM$ & 31s & 25s & 32s \\
+                  & $\pTM$ & 681s & 292s & 625s \\
+    \midrule
+        $\pSEL$ (L1/L2) & $\pERR$ & 129/140s & 59/70s & 101/112s \\
+                & $\pGUMBEL$ & 4.8s & 3.9s & 4.0s \\
+
+    \midrule
+        $\pMSR$ (L1/L2) & $\pGAUSS$ & 0.28/1.18s & 0.34/0.70s & 0.40/2.25s \\
+    \bottomrule
+    \end{tabular}
+    }
+    \caption{\textbf{Computational Cost}: FHAIM Runtimes (L1/L2)}
+    \label{tab:runtimes}
+\end{table}

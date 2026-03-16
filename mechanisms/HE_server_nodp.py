@@ -277,21 +277,14 @@ class HE_Computations:
         answers_enc = []
         # answers = []
 
-        time_oneway = 0
-        time_twoway = 0
-
         for cl in tqdm(self.candidates):
             if len(cl) == 1:
                 # One-way marginal: sum across columns
-                t0 = time.time()
                 marginal_he = self._compute_oneway_he(self.enc_data, cl[0])
-                time_oneway += time.time() - t0
                 # marginal = self._compute_oneway(data, cl[0])
             elif len(cl) == 2:
                 # Two-way marginal: element-wise multiply and sum
-                t0 = time.time()
                 marginal_he = self._compute_twoway_he(self.enc_data, cl[0], cl[1])
-                time_twoway += time.time() - t0
                 # marginal = self._compute_twoway(data, cl[0], cl[1])
             else:
                 # K-way marginal
@@ -304,9 +297,7 @@ class HE_Computations:
         self.answers_encrypted = answers_enc
         elapsed = time.time() - start
 
-        print(f"[TIMING] Compute 1-way marginals: {time_oneway:.3f}s ({time_oneway / 60:.3f} mins)")
-        print(f"[TIMING] Compute 2-way marginals: {time_twoway:.3f}s ({time_twoway / 60:.3f} mins)")
-        print(f"[TIMING] Compute total: {elapsed:.3f}s ({elapsed / 60:.3f} mins)")
+        print(f"Compute step ran for {elapsed / 60} mins")
 
         del self.enc_data
 
@@ -416,30 +407,25 @@ class HE_Computations:
         return y_enc
 
     def measure_he(self, marginal_index, sigma):
-        t_start = time.time()
         # we can add checks here on whether enough samples are available, if not waht to do, some logs and debug
         marginal = self.answers_encrypted[marginal_index]
         n_samples = len(marginal)
 
-        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        # noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
 
-        noise_enc = self.encrypt_noise(noise)
+        # noise_enc = self.encrypt_noise(noise)
 
         noised_marginal = []
 
         for i, ct in enumerate(marginal):
-            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+            noised_marginal.append(ct.decrypt(self.keys.secretKey, unpack_type="original")[0])
 
         noised_marginal = np.array(noised_marginal)
-
-        elapsed = time.time() - t_start
-        print(f"[TIMING] Measure step: {elapsed:.3f}s")
+        
         return noised_marginal
 
     def select_measure_worst_l1(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
-        t_start = time.time()
         errors = np.array([])
-        time_gumbel = 0
 
         epsilon = float(epsilon)
 
@@ -462,33 +448,29 @@ class HE_Computations:
             diff = []
             for a, b in zip(x, xest):
                 diff.append(a-b)
-
+            
             diff_comb = self.combine(diff)
-
+            
             norm_he = compute_l1_norm_he(diff_comb, self.len_vec, self.batch_size,scale=10000)
 
-            norm_he = (norm_he + (-bias_)) * wgt_
+            norm_he = (norm_he) * wgt_
 
             # err = wgt_ * (np.sum((x-xest)**2) - bias_)
-            t_gumbel_start = time.time()
-            noise = self.enc_noise_select[self.used_up_gumble_samples]
+            # noise = self.enc_noise_select[self.used_up_gumble_samples]
 
-            noise_enc = self.encrypt_noise([noise], show_progress=False)
+            # noise_enc = self.encrypt_noise([noise], show_progress=False)
 
             self.used_up_gumble_samples += 1
-            err = norm_he + noise_enc[0] * (2 * max_sensitivity / epsilon)
-            time_gumbel += time.time() - t_gumbel_start
+            err = norm_he # + noise_enc[0] * (2 * max_sensitivity / epsilon)
             err = err.decrypt(self.keys.secretKey, unpack_type="original")[0]
             errors = np.append(errors, err)
         cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
-        t_select = time.time() - t_start
         # breakpoint()
         # Measure
-        t_gaussian_start = time.time()
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
-        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
-        noise_enc = self.encrypt_noise(noise, show_progress=False)
+        # noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        # noise_enc = self.encrypt_noise(noise, show_progress=False)
         self.used_up_guassian_samples += n_samples
         # y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
@@ -496,22 +478,15 @@ class HE_Computations:
         noised_marginal = []
 
         for i, ct in enumerate(marginal):
-            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+            noised_marginal.append(ct.decrypt(self.keys.secretKey, unpack_type="original")[0])
 
         noised_marginal = np.array(noised_marginal)
-        time_gaussian = time.time() - t_gaussian_start
 
-        elapsed = time.time() - t_start
-        print(f"[TIMING] Select step total: {t_select:.3f}s")
-        print(f"[TIMING] Select step Gumbel noise: {time_gumbel:.3f}s")
-        print(f"[TIMING] Measure step (Gaussian noise): {time_gaussian:.3f}s")
         # breakpoint()
         return cl, noised_marginal
 
     def select_measure_worst_squared_l2(self,candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt):
-        t_start = time.time()
         errors = np.array([])
-        time_gumbel = 0
 
         epsilon = float(epsilon)
 
@@ -534,33 +509,29 @@ class HE_Computations:
             diff = []
             for a, b in zip(x, xest):
                 diff.append(a-b)
-
+            
             diff_comb = self.combine(diff)
-
+            
             norm_he = compute_squared_l2_norm_he(diff_comb, self.len_vec)
 
-            norm_he = (norm_he + (-bias_)) * wgt_
+            norm_he = (norm_he) * wgt_
 
             # err = wgt_ * (np.sum((x-xest)**2) - bias_)
-            t_gumbel_start = time.time()
-            noise = self.enc_noise_select[self.used_up_gumble_samples]
+            # noise = self.enc_noise_select[self.used_up_gumble_samples]
 
-            noise_enc = self.encrypt_noise([noise], show_progress=False)
+            # noise_enc = self.encrypt_noise([noise], show_progress=False)
 
             self.used_up_gumble_samples += 1
-            err = norm_he + noise_enc[0] * (2 * max_sensitivity / epsilon)
-            time_gumbel += time.time() - t_gumbel_start
+            err = norm_he # + noise_enc[0] * (2 * max_sensitivity / epsilon)
             err = err.decrypt(self.keys.secretKey, unpack_type="original")[0]
             errors = np.append(errors, err)
         cl_dec = np.argmax(errors) # this is the index of the query in encrypted form
-        t_select = time.time() - t_start
         # breakpoint()
         # Measure
-        t_gaussian_start = time.time()
         marginal = self.answers_encrypted[cl_dec]
         n_samples = len(marginal)
-        noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
-        noise_enc = self.encrypt_noise(noise, show_progress=False)
+        # noise = self.enc_noise_measure[self.used_up_guassian_samples : self.used_up_guassian_samples + n_samples]
+        # noise_enc = self.encrypt_noise(noise, show_progress=False)
         self.used_up_guassian_samples += n_samples
         # y_enc = marginal + sigma * noise
         cl = next((key for key, value in candidates_indices.items() if value == cl_dec), None)
@@ -568,13 +539,9 @@ class HE_Computations:
         noised_marginal = []
 
         for i, ct in enumerate(marginal):
-            noised_marginal.append((ct + noise_enc[i] * float(sigma)).decrypt(self.keys.secretKey, unpack_type="original")[0])
+            noised_marginal.append(ct.decrypt(self.keys.secretKey, unpack_type="original")[0])
 
         noised_marginal = np.array(noised_marginal)
-        time_gaussian = time.time() - t_gaussian_start
 
-        print(f"[TIMING] Select step total: {t_select:.3f}s")
-        print(f"[TIMING] Select step Gumbel noise: {time_gumbel:.3f}s")
-        print(f"[TIMING] Measure step (Gaussian noise): {time_gaussian:.3f}s")
         # breakpoint()
         return cl, noised_marginal

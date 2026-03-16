@@ -9,7 +9,6 @@ Note that we assume in this file that the data has been appropriately preprocess
 import time
 import sys
 import os
-import tracemalloc
 
 import joblib
 import numpy as np
@@ -26,9 +25,10 @@ from mechanism import Mechanism
 from collections import defaultdict
 from scipy.optimize import bisect
 import pandas as pd
+from tqdm import tqdm
 from mbi import Factor
 import argparse
-from HE_server import HE_Computations
+from HE_server_clear_nodp import HE_Computations
 
 
 class Tee:
@@ -173,7 +173,8 @@ class AIM(Mechanism):
 
 
     def run(self, data, workload, num_synth_rows=None, initial_cliques=None):
-        rounds = self.rounds or 16 * len(data.domain)
+        # rounds = self.rounds or 16 * len(data.domain)
+        rounds = 10
         candidates = compile_workload(workload)
 
 
@@ -193,7 +194,7 @@ class AIM(Mechanism):
         enc_noise_select = self.get_unit_gumbel_samples(gumbel_samples_needed)
         he = HE_Computations(domain, workload_domain_size, candidates, enc_noise_measure, enc_noise_select)
         #answers_enc =
-        he.compute_he(data_enc)
+        he.compute(data_enc)
         # Sikha end
 
 
@@ -214,7 +215,7 @@ class AIM(Mechanism):
         #for cl in oneway_indices:
         for cl, marginal_index in oneway_indices.items():
             #marginal_index = oneway_indices[cl]
-            y_enc = he.measure_he(marginal_index, sigma) # need to figure this out
+            y_enc = he.measure(marginal_index, sigma) # need to figure this out
             #x = data.project(cl).datavector()
             #y = x + self.gaussian_noise(sigma, x.size)
             y = y_enc.copy() # Decrypt here
@@ -227,27 +228,16 @@ class AIM(Mechanism):
             data.domain, measurements, iters=self.max_iters, callback_fn=lambda *_: None
         )
 
-        t = 0
-        terminate = False
-        while not terminate:
-            t += 1
-            if self.rho - rho_used < 2 * (0.5 / sigma**2 + 1.0 / 8 * epsilon**2):
-                # Just use up whatever remaining budget there is for one last round
-                remaining = self.rho - rho_used
-                sigma = np.sqrt(1 / (2 * 0.9 * remaining))
-                epsilon = np.sqrt(8 * 0.1 * remaining)
-                terminate = True
-
-            rho_used += 1.0 / 8 * epsilon**2 + 0.5 / sigma**2
-            print('Budget Used', rho_used, '/', self.rho)
-            size_limit = self.max_model_size * rho_used / self.rho
+        for t in range(1, rounds + 1):
+            size_limit = self.max_model_size * t / rounds
 
             small_candidates = filter_candidates(candidates, model, size_limit)
 
             # Sikha start ----- SELECT and MEASURE
             small_candidates_indices = {value:i for i, value in enumerate(candidates) if value in small_candidates.keys()}
             est_ans = []
-            for cl in candidates:
+            print("Estimating answers....")
+            for cl in tqdm(small_candidates.keys()):
                 data_vector = model.project(cl).datavector()
                 #padded_data_vector = np.pad(data_vector, (0, max_domain_size - len(data_vector)), 'constant')
                 est_ans.append(data_vector)
@@ -261,35 +251,26 @@ class AIM(Mechanism):
                 bias[i] = np.sqrt(2/np.pi)*sigma*model.domain.size(cl)
                 sensitivity.append(abs(wt))
             max_sensitivity = max(sensitivity)
-
+            print("Running select-measure method....")
             cl, y_enc = he.select_measure_worst_l1(small_candidates_indices, est_ans, epsilon, sigma, max_sensitivity,bias,wgt)
             y = y_enc.copy() # decrypt here
 
-            # cl = self.worst_approximated(
-            #     small_candidates, answers, model, epsilon, sigma
-            # )
-            # print('Measuring Clique', cl)
             n = data.domain.size(cl)
-            # x = data.project(cl).datavector()
-            # y = x + self.gaussian_noise(sigma, n)
+            print(f"Round {t}/{rounds} | Performing measurement for clique", cl)
             measurements.append(LinearMeasurement(y, cl, stddev=sigma))
             z = model.project(cl).datavector()
             # Sikha end
 
             # Warm start potentials from prior round
-            # TODO: check if it helps to call maximal_subsets here
             pcliques = list(set(M.clique for M in measurements))
             potentials = model.potentials.expand(pcliques)
+            print("Updating model...")
             model = estimation.mirror_descent(
                 data.domain, measurements, iters=self.max_iters, potentials=potentials, callback_fn=lambda *_: None
             )
             w = model.project(cl).datavector()
-            print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
-            print("(!!!!!!!!!!!!!!!!!!!!!!)                    Error in this round", np.linalg.norm(w - z, 1))
-            if np.linalg.norm(w - z, 1) <= sigma * np.sqrt(2 / np.pi) * n:
-                print("(!!!!!!!!!!!!!!!!!!!!!!) Reducing sigma", sigma / 2)
-                sigma /= 2
-                epsilon *= 2
+            print('Selected',cl,'Size',n)
+            print("Error in this round", np.linalg.norm(w - z, 1))
 
         print("Generating Data...")
         model = estimation.mirror_descent(
@@ -313,6 +294,8 @@ def default_params():
     # params['dataset'] = '../data/unosb_v1_clean.csv'
     # params['domain'] = '../data/unosb_v1_smallest-domain.json'
     # params['domain'] = '../data/unosb_v1-domain.json'
+    # params['dataset'] = '../data/compas_train.csv'
+    # params['domain'] = '../data/compass-domain.json'
     params['dataset'] = '../data/breast_train.csv'
     params['domain'] = '../data/breast-domain.json'
     params["epsilon"] = 1.0
@@ -349,13 +332,11 @@ if __name__ == "__main__":
         type=int,
         help="maximum number of cells for marginals in workload",
     )
-    parser.add_argument("--seed", type=int, help="Seed for reproducibility", default=0)
+    parser.add_argument("--seed", type=int,help="Seed for reproducibility", default=0)
     parser.add_argument("--save", type=str, help="path to save synthetic data")
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()
-
-    tracemalloc.start()
 
     print(f"Seed : {args.seed}")
     np.random.seed(args.seed)
@@ -364,9 +345,9 @@ if __name__ == "__main__":
     # setting up the save path
     dataset_name = args.dataset.split("/")[-1].replace(".csv", "")
 
-    args.save = f"../data/logs/run_{args.seed}/{dataset_name}/synth_fhaim_l1_eps_{args.epsilon}.csv" # data
-    model_save_path = f"../data/logs/run_{args.seed}/{dataset_name}/fhaim_l1_generator_eps_{args.epsilon}.joblib" # model
-    log_dir = f"../data/logs/run_{args.seed}/{dataset_name}/fhaim_l1_eps_{args.epsilon}.log"
+    args.save = f"../data/logs/run_{args.seed}/{dataset_name}_nodp/synth_aim_l1_eps_{args.epsilon}.csv" # data
+    model_save_path = f"../data/logs/run_{args.seed}/{dataset_name}_nodp/aim_l1_generator_eps_{args.epsilon}.joblib" # model
+    log_dir = f"../data/logs/run_{args.seed}/{dataset_name}_nodp/aim_l1_eps_{args.epsilon}.log"
 
     os.makedirs(os.path.dirname(args.save), exist_ok=True)
 
@@ -404,7 +385,7 @@ if __name__ == "__main__":
     print("Time taken to train and generate:", (stop_time-start_time)/60.0, " minutes")
     if args.save is not None:
         synth.df.to_csv(args.save, index=False)
-    #
+    
     #
     errors = []
     # for proj, wgt in workload_all:
@@ -414,8 +395,3 @@ if __name__ == "__main__":
         e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
         errors.append(e)
     print("Average Error: ", np.mean(errors))
-
-    current, peak = tracemalloc.get_traced_memory()
-    print(f"[MEMORY] Current: {current / 1024 / 1024:.2f} MB")
-    print(f"[MEMORY] Peak: {peak / 1024 / 1024:.2f} MB")
-    tracemalloc.stop()

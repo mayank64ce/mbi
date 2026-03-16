@@ -1,0 +1,104 @@
+========================================================================================================================
+FHAIM TIMING BENCHMARK (run_42)
+========================================================================================================================
+
+========================================================================================================================
+  FHAIM_L1
+========================================================================================================================
+Dataset         | Compute Total |      1-way |      2-way |  Select Avg |  Gumbel Avg | Measure Avg |  1-way Meas
+------------------------------------------------------------------------------------------------------------------------
+compas_train    |         5.31m |     24.83s |      4.87m |      59.23s |       3.91s |       0.34s |         N/A
+breast_train    |        11.92m |     30.72s |     11.37m |       2.15m |       4.77s |       0.28s |         N/A
+diabetes_train  |        10.94m |     31.97s |     10.37m |       1.68m |       3.91s |       0.40s |         N/A
+------------------------------------------------------------------------------------------------------------------------
+
+Detailed breakdown for FHAIM_L1:
+--------------------------------------------------------------------------------
+
+  compas_train:
+    1. Compute:
+       Total:       5.31m
+       1-way:      24.83s
+       2-way:       4.87m
+    2. Select (avg of 6 iterations):
+       Total:      59.23s
+       Gumbel:      3.91s
+       Gauss:       0.34s
+    3. Measure:
+       Per-step avg (9 steps):      0.29s
+
+  breast_train:
+    1. Compute:
+       Total:      11.92m
+       1-way:      30.72s
+       2-way:      11.37m
+    2. Select (avg of 6 iterations):
+       Total:       2.15m
+       Gumbel:      4.77s
+       Gauss:       0.28s
+    3. Measure:
+       Per-step avg (10 steps):      0.50s
+
+  diabetes_train:
+    1. Compute:
+       Total:      10.94m
+       1-way:      31.97s
+       2-way:      10.37m
+    2. Select (avg of 6 iterations):
+       Total:       1.68m
+       Gumbel:      3.91s
+       Gauss:       0.40s
+    3. Measure:
+       Per-step avg (9 steps):      0.47s
+
+========================================================================================================================
+  FHAIM_L2
+========================================================================================================================
+Dataset         | Compute Total |      1-way |      2-way |  Select Avg |  Gumbel Avg | Measure Avg |  1-way Meas
+------------------------------------------------------------------------------------------------------------------------
+compas_train    |         5.32m |     24.67s |      4.88m |       1.17m |       3.96s |       0.70s |       3.02s
+breast_train    |        11.89m |     30.59s |     11.34m |       2.33m |       4.83s |       1.18s |       5.23s
+diabetes_train  |        11.04m |     31.95s |     10.47m |       1.86m |       3.96s |       2.25s |       4.65s
+------------------------------------------------------------------------------------------------------------------------
+
+Detailed breakdown for FHAIM_L2:
+--------------------------------------------------------------------------------
+
+  compas_train:
+    1. Compute:
+       Total:       5.32m
+       1-way:      24.67s
+       2-way:       4.88m
+    2. Select (avg of 7 iterations):
+       Total:       1.17m
+       Gumbel:      3.96s
+       Gauss:       0.70s
+    3. Measure:
+       1-way total:      3.02s
+       Per-step avg (9 steps):      0.30s
+
+  breast_train:
+    1. Compute:
+       Total:      11.89m
+       1-way:      30.59s
+       2-way:      11.34m
+    2. Select (avg of 5 iterations):
+       Total:       2.33m
+       Gumbel:      4.83s
+       Gauss:       1.18s
+    3. Measure:
+       1-way total:      5.23s
+       Per-step avg (10 steps):      0.49s
+
+  diabetes_train:
+    1. Compute:
+       Total:      11.04m
+       1-way:      31.95s
+       2-way:      10.47m
+    2. Select (avg of 5 iterations):
+       Total:       1.86m
+       Gumbel:      3.96s
+       Gauss:       2.25s
+    3. Measure:
+       1-way total:      4.65s
+       Per-step avg (9 steps):      0.48s

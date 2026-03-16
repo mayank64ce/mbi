@@ -23,6 +23,7 @@ from scipy.optimize import bisect
 import pandas as pd
 from mbi import Factor
 import argparse
+import time
 
 
 def powerset(iterable):
@@ -184,9 +185,13 @@ def default_params():
     :returns: a dictionary of default parameter settings for each command line argument
     """
     params = {}
-    params["dataset"] = "../data/adult.csv"
-    params["domain"] = "../data/adult-domain.json"
-    params["epsilon"] = 1.0
+    # params["dataset"] = "../data/adult.csv"
+    # params["domain"] = "../data/adult-domain.json"
+    # params['dataset'] = '../data/unosb_v1_clean.csv'
+    # params['domain'] = '../data/unosb_v1-domain.json'
+    params['dataset'] = '../data/compas_train.csv'
+    params['domain'] = '../data/compass-domain.json'
+    params["epsilon"] = 5.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80
@@ -243,7 +248,11 @@ if __name__ == "__main__":
         max_model_size=args.max_model_size,
         max_iters=args.max_iters,
     )
+    start = time.time()
     model, synth = mech.run(data, workload)
+    end = time.time()
+
+    print("Total Time (s): ", (end - start)/60.0, " minutes")
 
     if args.save is not None:
         synth.df.to_csv(args.save, index=False)
