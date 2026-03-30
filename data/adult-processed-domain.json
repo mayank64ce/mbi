@@ -1,0 +1,16 @@
+{
+  "age": 8,
+  "workclass": 9,
+  "fnlwgt": 8,
+  "education-num": 16,
+  "marital-status": 7,
+  "occupation": 15,
+  "relationship": 6,
+  "race": 5,
+  "sex": 2,
+  "capital-gain": 5,
+  "capital-loss": 5,
+  "hours-per-week": 5,
+  "native-country": 7,
+  "income>50K": 2
+}

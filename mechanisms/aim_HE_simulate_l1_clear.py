@@ -320,7 +320,7 @@ def default_params():
     # params['domain'] = '../data/compass-domain.json'
     params['dataset'] = '../data/breast_train.csv'
     params['domain'] = '../data/breast-domain.json'
-    params["epsilon"] = 1e6
+    params["epsilon"] = 1.0
     params["delta"] = 1e-9
     params["noise"] = "laplace"
     params["max_model_size"] = 80
